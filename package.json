@@ -1,0 +1,58 @@
+{
+  "name": "oss-uploader.js",
+  "version": "0.1.6",
+  "author": "llliu <liulei_real@foxmail.com>",
+  "license": "MIT",
+  "description": "",
+  "keywords": [
+    "oss-uploader",
+    "oss-uploader.js",
+    "uploader",
+    "resumable.js",
+    "file upload",
+    "resumable upload",
+    "chunk upload",
+    "html5 upload",
+    "javascript upload",
+    "upload"
+  ],
+  "main": "src/uploader.js",
+  "scripts": {
+    "build": "gulp build"
+  },
+  "dependencies": {
+    "ali-oss": "^6.0.2",
+    "qiniu-js": "^2.5.3"
+  },
+  "devDependencies": {
+    "babel-cli": "^6.26.0",
+    "babel-core": "^6.26.3",
+    "babel-loader": "^7.1.5",
+    "babel-preset-env": "^1.7.0",
+    "babel-preset-es2015": "^6.24.1",
+    "babel-preset-stage-3": "^6.24.1",
+    "babelify": "^8.0.0",
+    "browserify": "^16.2.3",
+    "browserify-versionify": "^1.0.6",
+    "codecov": "^2.2.0",
+    "eslint": "^4.2.0",
+    "eslint-config-standard": "^6.1.0",
+    "eslint-plugin-promise": "^3.5.0",
+    "eslint-plugin-standard": "^3.0.1",
+    "gulp": "^3.9.1",
+    "gulp-babel": "^7.0.0",
+    "gulp-browserify": "^0.5.1",
+    "gulp-concat": "^2.6.1",
+    "gulp-eslint": "^4.0.0",
+    "gulp-git": "^2.4.1",
+    "gulp-header": "^1.8.8",
+    "gulp-rename": "^1.4.0",
+    "gulp-sourcemaps": "^2.6.0",
+    "gulp-tag-version": "^1.3.0",
+    "gulp-uglify": "^3.0.1",
+    "pump": "^1.0.2",
+    "sinon": "1.7.3",
+    "vinyl-buffer": "^1.0.1",
+    "vinyl-source-stream": "^2.0.0"
+  }
+}
