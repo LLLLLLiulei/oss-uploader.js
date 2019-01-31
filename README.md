@@ -2,6 +2,7 @@
 
  
 oss-uploader.js  是一个文件上传插件，Fork [simple-uploader.js](https://github.com/simple-uploader/Uploader)，包含[simple-uploader.js](https://github.com/simple-uploader/Uploader)所有功能，新增了文件上传至OSS（目前仅支持七牛云，后续考虑支持阿里云，腾讯云等主流OSS）。
+git地址：https://github.com/LLLLLLiulei/oss-uploader.js.git
 
 ## 安装
  
