@@ -1,8 +1,12 @@
 {
   "name": "oss-uploader.js",
-  "version": "0.1.6",
+  "version": "0.1.7",
   "author": "llliu <liulei_real@foxmail.com>",
   "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/LLLLLLiulei/oss-uploader.js.git"
+  },
   "description": "",
   "keywords": [
     "oss-uploader",
