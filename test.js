@@ -1,4 +1,5 @@
 const Uploader = require('./dist/uploader.js')
 
 var up = new Uploader()
-console.log(Uploader.File)
+console.log('test',Uploader.File)
+
