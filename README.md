@@ -24,7 +24,7 @@ var r = new Uploader({ opt1: 'val', ...})
 * `oss` oss名称，默认 `null（七牛云：qiniu）`，用于区分上传至哪个OSS。
 * `ossParams` oss上传时的参数配置，可以是一个对象（包含字段token（必须），key（必须），putExtra，config，参考七牛云jssdk）或者一个方法（会传入当前file 需返回一个对象，包含字段token（必须），key（必须），putExtra，config参考七牛云jssdk）
 * `beforeLastChunkUplod` 文件最后一分块上传前事件钩子
-*  `beforeFileUplod` 文件开始上传前钩子
+*  `beforeChunkUplod` 文件分块开始上传前钩子
  
  
 ## 源
