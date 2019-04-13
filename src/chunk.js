@@ -157,9 +157,8 @@ utils.extend(Chunk.prototype, {
     ;(_ => {
       try {
         let ossParams = $.file.ossParams
-        let file = $.bytes
-        let { key, name, options, progress } = ossParams
-        let ossName = key || name || file.name || 'untitiled_' + Date.now()
+        let { key, name, options,ossConfig } = ossParams
+        let {progress} = options
         options = utils.isObject(options) ? options : {}
         options = utils.extend(options, {
           progress: function (percent, checkpoint) {
@@ -173,9 +172,10 @@ utils.extend(Chunk.prototype, {
             utils.isFunction(progress) && progress(percent, checkpoint)
           }
         })
-
-        const client = new AliOSS(ossParams)
-        client.multipartUpload(ossName, file, options).then(result => {
+        let file = $.bytes
+        let ossName = key || name || file.name || 'untitiled_' + Date.now()
+        const client = new AliOSS(ossConfig )
+        client.multipartUpload(ossName,  file, options).then(result => {
           console.log('result', result)
           if (result && result.etag) {
             $.xhr.readyState = 4

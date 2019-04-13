@@ -1,4 +1,4 @@
-import { each } from './utils'
+import util from './utils'
 
 const event = {
   _eventData: null,
@@ -7,7 +7,7 @@ const event = {
     if (!this._eventData) this._eventData = {}
     if (!this._eventData[name]) this._eventData[name] = []
     let listened = false
-    each(this._eventData[name], function (fuc) {
+    util.each(this._eventData[name], function (fuc) {
       if (fuc === func) {
         listened = true
         return false
@@ -21,7 +21,7 @@ const event = {
     if (!this._eventData) this._eventData = {}
     if (!this._eventData[name] || !this._eventData[name].length) return
     if (func) {
-      each(
+      util.each(
         this._eventData[name],
         function (fuc, i) {
           if (fuc === func) {
@@ -40,7 +40,7 @@ const event = {
     if (!this._eventData[name]) return true
     let args = this._eventData[name].slice.call(arguments, 1)
     let preventDefault = false
-    each(
+    util.each(
       this._eventData[name],
       function (fuc) {
         preventDefault = fuc.apply(this, args) === false || preventDefault
