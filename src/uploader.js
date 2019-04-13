@@ -1,16 +1,17 @@
-const utils = require('./utils')
-const event = require('./event')
-const File = require('./file')
-const Chunk = require('./chunk')
-const Log = require('./utils').console
+import utils from './utils'
+import event from './event'
+import File from './file'
+import Chunk from './chunk'
+import {version} from '../package.json'
 
-let version = '__VERSION__'
+// let version = '__VERSION__'
+
+let oss = ['qiniu', 'aliyun', 'tencent']
 
 let isServer = typeof window === 'undefined'
-
 // ie10+
 let ie10plus = isServer ? false : window.navigator.msPointerEnabled
-let support = (function() {
+let support = (function () {
   if (isServer) {
     return false
   }
@@ -22,7 +23,7 @@ let support = (function() {
   let bproto = null
   if (_support) {
     bproto = window.Blob.prototype
-    utils.each(['slice', 'webkitSlice', 'mozSlice'], function(n) {
+    utils.each(['slice', 'webkitSlice', 'mozSlice'], function (n) {
       if (bproto[n]) {
         sliceName = n
         return false
@@ -34,8 +35,7 @@ let support = (function() {
   bproto = null
   return _support
 })()
-
-let supportDirectory = (function() {
+let supportDirectory = (function () {
   if (isServer) {
     return false
   }
@@ -45,8 +45,19 @@ let supportDirectory = (function() {
   input = null
   return sd
 })()
+/**
+ * Default read function using the webAPI
+ *
+ * @function webAPIFileRead(fileObj, fileType, startByte, endByte, chunk)
+ *
+ */
+let webAPIFileRead = function (fileObj, fileType, startByte, endByte, chunk) {
+  chunk.readFinished(
+    fileObj.file[Uploader.sliceName](startByte, endByte, fileType)
+  )
+}
 
-function Uploader(opts) {
+function Uploader (opts) {
   this.support = support
   /* istanbul ignore if */
   if (!this.support) {
@@ -55,7 +66,7 @@ function Uploader(opts) {
   this.supportDirectory = supportDirectory
   utils.defineNonEnumerable(this, 'filePaths', {})
   this.opts = utils.extend({}, Uploader.defaults, opts || {})
-  this.opts.chunkSize = this.opts.oss
+  this.opts.chunkSize = oss.includes(this.opts.oss)
     ? Number.MAX_SAFE_INTEGER
     : this.opts.chunkSize
 
@@ -63,20 +74,6 @@ function Uploader(opts) {
 
   File.call(this, this)
 }
-
-/**
- * Default read function using the webAPI
- *
- * @function webAPIFileRead(fileObj, fileType, startByte, endByte, chunk)
- *
- */
-let webAPIFileRead = function(fileObj, fileType, startByte, endByte, chunk) {
-  chunk.readFinished(
-    fileObj.file[Uploader.sliceName](startByte, endByte, fileType)
-  )
-}
-
-Uploader.version = version
 
 Uploader.defaults = {
   chunkSize: 1024 * 1024,
@@ -107,10 +104,10 @@ Uploader.defaults = {
   readFileFn: webAPIFileRead,
   checkChunkUploadedByResponse: null,
   initialPaused: false,
-  processResponse: function(response, cb) {
+  processResponse: function (response, cb) {
     cb(null, response)
   },
-  processParams: function(params) {
+  processParams: function (params) {
     return params
   },
   beforeFileUplod: null,
@@ -123,6 +120,7 @@ Uploader.utils = utils
 Uploader.event = event
 Uploader.File = File
 Uploader.Chunk = Chunk
+Uploader.version = version
 
 // inherit file
 Uploader.prototype = utils.extend({}, File.prototype)
@@ -131,7 +129,7 @@ utils.extend(Uploader.prototype, event)
 utils.extend(Uploader.prototype, {
   constructor: Uploader,
 
-  _trigger: function(name) {
+  _trigger: function (name) {
     let args = utils.toArray(arguments)
     let preventDefault = !this.trigger.apply(this, arguments)
     if (name !== 'catchAll') {
@@ -141,19 +139,19 @@ utils.extend(Uploader.prototype, {
     return !preventDefault
   },
 
-  _triggerAsync: function() {
+  _triggerAsync: function () {
     let args = arguments
-    utils.nextTick(function() {
+    utils.nextTick(function () {
       this._trigger.apply(this, args)
     }, this)
   },
 
-  addFiles: function(files, evt) {
+  addFiles: function (files, evt) {
     let _files = []
     let oldFileListLen = this.fileList.length
     utils.each(
       files,
-      function(file) {
+      function (file) {
         // Uploading empty file IE10/IE11 hangs indefinitely
         // Directories have size `0` and name `.`
         // Ignore already added files if opts.allowDuplicateUploads is set to false
@@ -186,7 +184,7 @@ utils.extend(Uploader.prototype, {
     if (this._trigger('filesAdded', _files, newFileList, evt)) {
       utils.each(
         _files,
-        function(file) {
+        function (file) {
           if (this.opts.singleFile && this.files.length > 0) {
             this.removeFile(this.files[0])
           }
@@ -198,7 +196,7 @@ utils.extend(Uploader.prototype, {
     } else {
       utils.each(
         newFileList,
-        function(file) {
+        function (file) {
           File.prototype.removeFile.call(this, file)
         },
         this
@@ -206,22 +204,22 @@ utils.extend(Uploader.prototype, {
     }
   },
 
-  addFile: function(file, evt) {
+  addFile: function (file, evt) {
     this.addFiles([file], evt)
   },
 
-  cancel: function() {
+  cancel: function () {
     for (let i = this.fileList.length - 1; i >= 0; i--) {
       this.fileList[i].cancel()
     }
   },
 
-  removeFile: function(file) {
+  removeFile: function (file) {
     File.prototype.removeFile.call(this, file)
     this._trigger('fileRemoved', file)
   },
 
-  generateUniqueIdentifier: function(file) {
+  generateUniqueIdentifier: function (file) {
     let custom = this.opts.generateUniqueIdentifier
     if (utils.isFunction(custom)) {
       return custom(file)
@@ -234,9 +232,9 @@ utils.extend(Uploader.prototype, {
     return file.size + '-' + relativePath.replace(/[^0-9a-zA-Z_-]/gim, '')
   },
 
-  getFromUniqueIdentifier: function(uniqueIdentifier) {
+  getFromUniqueIdentifier: function (uniqueIdentifier) {
     let ret = false
-    utils.each(this.files, function(file) {
+    utils.each(this.files, function (file) {
       if (file.uniqueIdentifier === uniqueIdentifier) {
         ret = file
         return false
@@ -245,30 +243,29 @@ utils.extend(Uploader.prototype, {
     return ret
   },
 
-  async dealOssParams(file) {
+  async dealOssParams (file) {
     try {
-      if (['qiniu', 'aliyun'].includes(this.opts.oss)) {
-        let params = file.ossParams
-        if (params && params.token) {
+      if (oss.includes(this.opts.oss)) {
+        let {ossParams} = file
+        if (!utils.isEmptyObject(ossParams)) {
           return true
         }
         if (typeof this.opts.ossParams === 'function') {
-          params = await this.opts.ossParams(file)
+          ossParams = await this.opts.ossParams(file)
         } else if (typeof this.opts.ossParams === 'object') {
-          params = utils.extend({}, this.opts.ossParams)
+          ossParams = utils.extend({}, this.opts.ossParams)
         }
-        file.ossParams = utils.extend({}, params)
-        return params && params.key
+        file.ossParams = utils.extend({}, ossParams)
+        return ossParams && ossParams.key
       }
     } catch (e) {
-      Log.error(e)
+      console.error(e)
       return false
     }
-
     return true
   },
 
-  uploadNextChunk: async function(preventEvents) {
+  uploadNextChunk: async function (preventEvents) {
     let $ = this
     let found = false
     let pendingStatus = Chunk.STATUS.PENDING
@@ -326,7 +323,7 @@ utils.extend(Uploader.prototype, {
           this._trigger('beforeChunkUplod', file)
           await $.opts.beforeChunkUplod(file)
         }
-        utils.each(file.chunks, function(chunk) {
+        utils.each(file.chunks, function (chunk) {
           if (chunk.status() === pendingStatus) {
             let chunkParams = chunk.getParams()
             let isLastChunk =
@@ -352,7 +349,7 @@ utils.extend(Uploader.prototype, {
 
     // The are no more outstanding chunks to upload, check is everything is done
     let outstanding = false
-    utils.each(this.files, function(file) {
+    utils.each(this.files, function (file) {
       if (!file.isComplete()) {
         outstanding = true
         return false
@@ -361,14 +358,14 @@ utils.extend(Uploader.prototype, {
     // should check files now
     // if now files in list
     // should not trigger complete event
-    if (!outstanding && !preventEvents) {
+    if (!outstanding && !preventEvents && this.files.length) {
       // All chunks have been uploaded, complete
       this._triggerAsync('complete')
     }
     return outstanding
   },
 
-  upload: async function(preventEvents) {
+  upload: async function (preventEvents) {
     // Make sure we don't start too many uploads at once
     let ret = this._shouldUploadNext()
     if (ret === false) {
@@ -393,13 +390,13 @@ utils.extend(Uploader.prototype, {
    * @function
    * @returns {Boolean|Number}
    */
-  _shouldUploadNext: function() {
+  _shouldUploadNext: function () {
     let num = 0
     let should = true
     let simultaneousUploads = this.opts.simultaneousUploads
     let uploadingStatus = Chunk.STATUS.UPLOADING
-    utils.each(this.files, function(file) {
-      utils.each(file.chunks, function(chunk) {
+    utils.each(this.files, function (file) {
+      utils.each(file.chunks, function (chunk) {
         if (chunk.status() === uploadingStatus) {
           num++
           if (num >= simultaneousUploads) {
@@ -425,14 +422,14 @@ utils.extend(Uploader.prototype, {
    *  eg: accept: 'image/*'
    * be selected (Chrome only).
    */
-  assignBrowse: function(domNodes, isDirectory, singleFile, attributes) {
+  assignBrowse: function (domNodes, isDirectory, singleFile, attributes) {
     if (typeof domNodes.length === 'undefined') {
       domNodes = [domNodes]
     }
 
     utils.each(
       domNodes,
-      function(domNode) {
+      function (domNode) {
         let input
         if (domNode.tagName === 'INPUT' && domNode.type === 'file') {
           input = domNode
@@ -454,7 +451,7 @@ utils.extend(Uploader.prototype, {
           // second - input.click(), input is inside domNode
           domNode.addEventListener(
             'click',
-            function(e) {
+            function (e) {
               if (domNode.tagName.toLowerCase() === 'label') {
                 return
               }
@@ -470,14 +467,14 @@ utils.extend(Uploader.prototype, {
           input.setAttribute('webkitdirectory', 'webkitdirectory')
         }
         attributes &&
-          utils.each(attributes, function(value, key) {
+          utils.each(attributes, function (value, key) {
             input.setAttribute(key, value)
           })
         // When new files are added, simply append them to the overall list
         let that = this
         input.addEventListener(
           'change',
-          function(e) {
+          function (e) {
             that._trigger(e.type, e)
             if (e.target.value) {
               that.addFiles(e.target.files, e)
@@ -491,7 +488,7 @@ utils.extend(Uploader.prototype, {
     )
   },
 
-  onDrop: function(evt) {
+  onDrop: function (evt) {
     this._trigger(evt.type, evt)
     if (this.opts.onDropStopPropagation) {
       evt.stopPropagation()
@@ -500,7 +497,7 @@ utils.extend(Uploader.prototype, {
     this._parseDataTransfer(evt.dataTransfer, evt)
   },
 
-  _parseDataTransfer: function(dataTransfer, evt) {
+  _parseDataTransfer: function (dataTransfer, evt) {
     if (
       dataTransfer.items &&
       dataTransfer.items[0] &&
@@ -512,11 +509,11 @@ utils.extend(Uploader.prototype, {
     }
   },
 
-  webkitReadDataTransfer: function(dataTransfer, evt) {
+  webkitReadDataTransfer: function (dataTransfer, evt) {
     let self = this
     let queue = dataTransfer.items.length
     let files = []
-    utils.each(dataTransfer.items, function(item) {
+    utils.each(dataTransfer.items, function (item) {
       let entry = item.webkitGetAsEntry()
       if (!entry) {
         decrement()
@@ -529,14 +526,14 @@ utils.extend(Uploader.prototype, {
         readDirectory(entry.createReader())
       }
     })
-    function readDirectory(reader) {
-      reader.readEntries(function(entries) {
+    function readDirectory (reader) {
+      reader.readEntries(function (entries) {
         if (entries.length) {
           queue += entries.length
-          utils.each(entries, function(entry) {
+          utils.each(entries, function (entry) {
             if (entry.isFile) {
               let fullPath = entry.fullPath
-              entry.file(function(file) {
+              entry.file(function (file) {
                 fileReadSuccess(file, fullPath)
               }, readError)
             } else if (entry.isDirectory) {
@@ -549,33 +546,33 @@ utils.extend(Uploader.prototype, {
         }
       }, readError)
     }
-    function fileReadSuccess(file, fullPath) {
+    function fileReadSuccess (file, fullPath) {
       // relative path should not start with "/"
       file.relativePath = fullPath.substring(1)
       files.push(file)
       decrement()
     }
-    function readError(fileError) {
+    function readError (fileError) {
       throw fileError
     }
-    function decrement() {
+    function decrement () {
       if (--queue === 0) {
         self.addFiles(files, evt)
       }
     }
   },
 
-  _assignHelper: function(domNodes, handles, remove) {
+  _assignHelper: function (domNodes, handles, remove) {
     if (typeof domNodes.length === 'undefined') {
       domNodes = [domNodes]
     }
     let evtMethod = remove ? 'removeEventListener' : 'addEventListener'
     utils.each(
       domNodes,
-      function(domNode) {
+      function (domNode) {
         utils.each(
           handles,
-          function(handler, name) {
+          function (handler, name) {
             domNode[evtMethod](name, handler, false)
           },
           this
@@ -585,7 +582,7 @@ utils.extend(Uploader.prototype, {
     )
   },
 
-  _preventEvent: function(e) {
+  _preventEvent: function (e) {
     utils.preventEvent(e)
     this._trigger(e.type, e)
   },
@@ -595,7 +592,7 @@ utils.extend(Uploader.prototype, {
    * @function
    * @param {Element|Array.<Element>} domNodes
    */
-  assignDrop: function(domNodes) {
+  assignDrop: function (domNodes) {
     this._onDrop = utils.bind(this.onDrop, this)
     this._assignHelper(domNodes, {
       dragover: this.preventEvent,
@@ -610,7 +607,7 @@ utils.extend(Uploader.prototype, {
    * @function
    * @param domNodes
    */
-  unAssignDrop: function(domNodes) {
+  unAssignDrop: function (domNodes) {
     this._assignHelper(
       domNodes,
       {
@@ -625,4 +622,4 @@ utils.extend(Uploader.prototype, {
   }
 })
 
-module.exports = Uploader
+export default Uploader

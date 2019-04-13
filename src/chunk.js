@@ -1,7 +1,7 @@
-const utils = require('./utils')
-const qiniu = require('qiniu-js')
-const AliOSS = require('ali-oss')
-const Log = require('./utils').console
+import utils from './utils'
+import AliOSS from 'ali-oss'
+import TencentCOS from 'cos-js-sdk-v5'
+import * as qiniu from 'qiniu-js'
 
 function Chunk (uploader, file, offset) {
   utils.defineNonEnumerable(this, 'uploader', uploader)
@@ -21,7 +21,7 @@ function Chunk (uploader, file, offset) {
   this.xhr = null
 }
 
-let STATUS = (Chunk.STATUS = {
+const STATUS = {
   PENDING: 'pending',
   UPLOADING: 'uploading',
   READING: 'reading',
@@ -30,7 +30,8 @@ let STATUS = (Chunk.STATUS = {
   COMPLETE: 'complete',
   PROGRESS: 'progress',
   RETRY: 'retry'
-})
+}
+Chunk.STATUS = STATUS
 
 utils.extend(Chunk.prototype, {
   _event: function (evt, args) {
@@ -121,12 +122,10 @@ utils.extend(Chunk.prototype, {
     this.send()
   },
 
-  // TODO upload to aliyunOSS handler
-  _aliyunSend: async function () {
-    Log.log('aliyun send...', this)
-    let $ = this
-
-    let progressHandler = function (event) {
+  _aliyunUploadHandler: async function () {
+    console.log('aliyun send...', this)
+    const $ = this
+    const progressHandler = function (event) {
       if (event) {
         $.loaded = event.loaded
         $.total = event.size
@@ -134,7 +133,7 @@ utils.extend(Chunk.prototype, {
       $._event(STATUS.PROGRESS, event)
     }
 
-    let doneHandler = function (event) {
+    const doneHandler = function (event) {
       let msg = $.message()
       $.processingResponse = true
       $.uploader.opts.processResponse(msg, function (err, res) {
@@ -148,58 +147,64 @@ utils.extend(Chunk.prototype, {
         }
         let status = $.status()
         if (status === STATUS.SUCCESS || status === STATUS.ERROR) {
-          delete this.data
+          // delete this.data
           $._event(status, res)
           status === STATUS.ERROR && $.uploader.uploadNextChunk()
         }
       })
     }
 
-    let ossParams = $.file.ossParams
-    let file = this.bytes
-    let { key } = ossParams
-    let client = new AliOSS(ossParams)
-    let tempCheckpoint
-    async function multipartUpload () {
+    ;(_ => {
       try {
-        $.xhr = {
-          readyState: 1,
-          abort: client.cancel.bind(client)
-        }
-        let result = await client.multipartUpload(key, file, {
-          progress: async function (percent, checkpoint) {
-            Log.log('progress', arguments)
-            tempCheckpoint = checkpoint
-            $.xhr.readyState = 1
+        let ossParams = $.file.ossParams
+        let file = $.bytes
+        let { key, name, options, progress } = ossParams
+        let ossName = key || name || file.name || 'untitiled_' + Date.now()
+        options = utils.isObject(options) ? options : {}
+        options = utils.extend(options, {
+          progress: function (percent, checkpoint) {
+            console.log(checkpoint)
+            console.log('progress', arguments)
+            $.xhr.readyState = 3
             progressHandler({
               loaded: $.file.size * percent,
               size: $.file.size
             })
-          },
-          checkpoint: tempCheckpoint
+            utils.isFunction(progress) && progress(percent, checkpoint)
+          }
         })
-        Log.log('result', result)
-        if (result && result.etag) {
-          $.xhr.readyState = 4
-          $.xhr.status = 200
-          doneHandler()
+
+        const client = new AliOSS(ossParams)
+        client.multipartUpload(ossName, file, options).then(result => {
+          console.log('result', result)
+          if (result && result.etag) {
+            $.xhr.readyState = 4
+            $.xhr.status = 200
+            doneHandler()
+          }
+        })
+        $.xhr = {
+          readyState: 1,
+          abort: client.cancel.bind(client)
         }
       } catch (e) {
-        Log.log(e)
+        console.error(e)
         if (e.name !== 'cancel') {
+          console.error(e)
           if ($.xhr) {
+            $.xhr.responseText = e.message || 'error'
+            $.xhr.readyState = 4
             $.xhr.status = 500
           }
           doneHandler()
         }
       }
-    }
-    multipartUpload()
+    })()
   },
 
-  _qiniuSend: async function () {
-    let $ = this
-    let progressHandler = function (event) {
+  _qiniuUploadHandler: async function () {
+    const $ = this
+    const progressHandler = function (event) {
       if (event) {
         $.loaded = event.loaded
         $.total = event.size
@@ -207,7 +212,8 @@ utils.extend(Chunk.prototype, {
       $._event(STATUS.PROGRESS, event)
     }
 
-    let doneHandler = function (event) {
+    const doneHandler = function (event) {
+      console.log('doneHandler', event)
       let msg = $.message()
       $.processingResponse = true
       $.uploader.opts.processResponse(msg, function (err, res) {
@@ -221,19 +227,21 @@ utils.extend(Chunk.prototype, {
         }
         let status = $.status()
         if (status === STATUS.SUCCESS || status === STATUS.ERROR) {
-          delete this.data
+          // delete this.data
           $._event(status, res)
           status === STATUS.ERROR && $.uploader.uploadNextChunk()
         }
       })
     }
 
-    let observer = {
+    const observer = {
       next (res) {
-        $.xhr.readyState = 1
+        $.xhr.readyState = 3
         progressHandler(res.total)
       },
       error (err) {
+        console.error(err)
+        $.xhr.readyState = 4
         if (err.isRequestError) {
           $.xhr.status = err.code
         } else {
@@ -243,6 +251,7 @@ utils.extend(Chunk.prototype, {
         doneHandler()
       },
       complete (res) {
+        console.log('complete', res)
         $.xhr.readyState = 4
         $.xhr.status = 200
         doneHandler()
@@ -250,18 +259,18 @@ utils.extend(Chunk.prototype, {
     }
 
     let ossParams = $.file.ossParams
-    let file = this.bytes
+    let file = $.bytes
     let { key, token, putExtra, config } = ossParams
-    let observable = qiniu.upload(file, key, token, putExtra, config)
+    const observable = qiniu.upload(file, key, token, putExtra, config)
     $.xhr = {
       readyState: 1,
-      abort: function () {}
+      abort: _ => 'abort'
     }
-    let subscription = observable.subscribe(observer)
+    const subscription = observable.subscribe(observer)
     $.xhr.abort = subscription.unsubscribe.bind(subscription)
   },
 
-  _defaultSend: function () {
+  _defaultUploadHandler: function () {
     this.xhr = new XMLHttpRequest()
     this.xhr.upload.addEventListener('progress', progressHandler, false)
     this.xhr.addEventListener('load', doneHandler, false)
@@ -304,7 +313,7 @@ utils.extend(Chunk.prototype, {
         }
         let status = $.status()
         if (status === STATUS.SUCCESS || status === STATUS.ERROR) {
-          delete this.data
+          // delete this.data
           $._event(status, res)
           status === STATUS.ERROR && $.uploader.uploadNextChunk()
         } else {
@@ -323,6 +332,12 @@ utils.extend(Chunk.prototype, {
         }
       })
     }
+  },
+
+  _tencentUploadHandler: function () {
+    // TODO
+    console.log('TODO')
+    console.log(TencentCOS)
   },
 
   send: function () {
@@ -355,19 +370,23 @@ utils.extend(Chunk.prototype, {
     this.total = 0
     this.pendingRetry = false
 
+    let uploaderFnName
     switch (this.uploader.opts.oss) {
       case 'qiniu':
-        Log.log('qiniu...')
-        this._qiniuSend()
-        return
+        uploaderFnName = '_qiniuUploadHandler'
+        break
       case 'aliyun':
-        Log.log('aliyun...')
-        this._aliyunSend()
-        return
+        uploaderFnName = '_aliyunUploadHandler'
+        break
+      case 'tencent':
+        uploaderFnName = '_tencentUploadHandler'
+        break
       default:
-        Log.log('default...')
-        this._defaultSend()
+        uploaderFnName = '_defaultUploadHandler'
+        break
     }
+    console.log('uploaderFnName', uploaderFnName)
+    utils.isFunction(this[uploaderFnName]) && this[uploaderFnName]()
   },
 
   abort: function () {
@@ -376,9 +395,7 @@ utils.extend(Chunk.prototype, {
     this.xhr = null
     this.processingResponse = false
     this.processedState = null
-    if (xhr) {
-      xhr.abort()
-    }
+    xhr && xhr.abort()
   },
 
   status: function (isTest) {
@@ -500,4 +517,4 @@ utils.extend(Chunk.prototype, {
   }
 })
 
-module.exports = Chunk
+export default Chunk

@@ -1,9 +1,9 @@
-const each = require('./utils').each
+import { each } from './utils'
 
-let event = {
+const event = {
   _eventData: null,
 
-  on: function (name, func) {
+  on (name, func) {
     if (!this._eventData) this._eventData = {}
     if (!this._eventData[name]) this._eventData[name] = []
     let listened = false
@@ -17,8 +17,7 @@ let event = {
       this._eventData[name].push(func)
     }
   },
-
-  off: function (name, func) {
+  off (name, func) {
     if (!this._eventData) this._eventData = {}
     if (!this._eventData[name] || !this._eventData[name].length) return
     if (func) {
@@ -36,8 +35,7 @@ let event = {
       this._eventData[name] = []
     }
   },
-
-  trigger: function (name) {
+  trigger (name) {
     if (!this._eventData) this._eventData = {}
     if (!this._eventData[name]) return true
     let args = this._eventData[name].slice.call(arguments, 1)
@@ -53,4 +51,4 @@ let event = {
   }
 }
 
-module.exports = event
+export default event

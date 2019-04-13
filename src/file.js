@@ -1,7 +1,7 @@
-const utils = require('./utils')
-const Chunk = require('./chunk')
+import utils from './utils'
+import Chunk from './chunk'
 
-function File(uploader, file, parent) {
+function File (uploader, file, parent) {
   utils.defineNonEnumerable(this, 'uploader', uploader)
   this.isRoot = this.isFolder = uploader === this
   utils.defineNonEnumerable(this, 'parent', parent || null)
@@ -51,14 +51,29 @@ function File(uploader, file, parent) {
   this.bootstrap()
 }
 
+function parsePaths (path) {
+  let ret = []
+  let paths = path.split('/')
+  let len = paths.length
+  let i = 1
+  paths.splice(len - 1, 1)
+  len--
+  if (paths.length) {
+    while (i <= len) {
+      ret.push(paths.slice(0, i++).join('/') + '/')
+    }
+  }
+  return ret
+}
+
 utils.extend(File.prototype, {
-  _parseFile: function() {
+  _parseFile: function () {
     let ppaths = parsePaths(this.relativePath)
     if (ppaths.length) {
       let filePaths = this.uploader.filePaths
       utils.each(
         ppaths,
-        function(path, i) {
+        function (path, i) {
           let folderFile = filePaths[path]
           if (!folderFile) {
             folderFile = new File(this.uploader, path, this.parent)
@@ -78,7 +93,7 @@ utils.extend(File.prototype, {
     }
   },
 
-  _updateParentFileList: function(file) {
+  _updateParentFileList: function (file) {
     if (!file) {
       file = this
     }
@@ -88,11 +103,11 @@ utils.extend(File.prototype, {
     }
   },
 
-  _eachAccess: function(eachFn, fileFn) {
+  _eachAccess: function (eachFn, fileFn) {
     if (this.isFolder) {
       utils.each(
         this.files,
-        function(f, i) {
+        function (f, i) {
           return eachFn.call(this, f, i)
         },
         this
@@ -102,7 +117,7 @@ utils.extend(File.prototype, {
     fileFn.call(this, this)
   },
 
-  bootstrap: function() {
+  bootstrap: function () {
     if (this.isFolder) return
     let opts = this.uploader.opts
     if (utils.isFunction(opts.initFileFn)) {
@@ -120,19 +135,19 @@ utils.extend(File.prototype, {
     }
   },
 
-  _measureSpeed: function(hard) {
+  _measureSpeed: function (hard) {
     let averageSpeeds = 0
     let currentSpeeds = 0
     let num = 0
     this._eachAccess(
-      function(file) {
+      function (file) {
         if (!file.paused && !file.error) {
           num += 1
           averageSpeeds += file.averageSpeed || 0
           currentSpeeds += file.currentSpeed || 0
         }
       },
-      function() {
+      function () {
         let timeSpan = Date.now() - this._lastProgressCallback
         if (!timeSpan) {
           return
@@ -164,19 +179,19 @@ utils.extend(File.prototype, {
     }
   },
 
-  _checkProgress: function(file) {
+  _checkProgress: function (file) {
     return (
       Date.now() - this._lastProgressCallback >=
       this.uploader.opts.progressCallbacksInterval
     )
   },
 
-  _chunkEvent: function(chunk, evt, message) {
+  _chunkEvent: function (chunk, evt, message) {
     let uploader = this.uploader
     let STATUS = Chunk.STATUS
     let that = this
     let rootFile = this.getRoot()
-    let triggerProgress = function(hard) {
+    let triggerProgress = function (hard) {
       that._measureSpeed(hard)
       uploader._trigger('fileProgress', rootFile, that, chunk)
       that._lastProgressCallback = Date.now()
@@ -225,13 +240,13 @@ utils.extend(File.prototype, {
     }
   },
 
-  _updateUploadedChunks: function(message, chunk) {
+  _updateUploadedChunks: function (message, chunk) {
     let checkChunkUploaded = this.uploader.opts.checkChunkUploadedByResponse
     if (checkChunkUploaded) {
       let xhr = chunk.xhr
       utils.each(
         this.chunks,
-        function(_chunk) {
+        function (_chunk) {
           if (!_chunk.tested) {
             let uploaded = checkChunkUploaded.call(this, _chunk, message)
             if (_chunk === chunk && !uploaded) {
@@ -262,7 +277,7 @@ utils.extend(File.prototype, {
     }
   },
 
-  _error: function() {
+  _error: function () {
     this.error = this.allError = true
     let parent = this.parent
     while (parent && parent !== this.uploader) {
@@ -275,7 +290,7 @@ utils.extend(File.prototype, {
     }
   },
 
-  _resetError: function() {
+  _resetError: function () {
     this.error = this.allError = false
     let parent = this.parent
     let index = -1
@@ -290,18 +305,18 @@ utils.extend(File.prototype, {
     }
   },
 
-  isComplete: function() {
+  isComplete: function () {
     let outstanding = false
     this._eachAccess(
-      function(file) {
+      function (file) {
         if (!file.isComplete()) {
           outstanding = true
           return false
         }
       },
-      function() {
+      function () {
         let STATUS = Chunk.STATUS
-        utils.each(this.chunks, function(chunk) {
+        utils.each(this.chunks, function (chunk) {
           let status = chunk.status()
           if (
             status === STATUS.PENDING ||
@@ -319,18 +334,18 @@ utils.extend(File.prototype, {
     return !outstanding
   },
 
-  isUploading: function() {
+  isUploading: function () {
     let uploading = false
     this._eachAccess(
-      function(file) {
+      function (file) {
         if (file.isUploading()) {
           uploading = true
           return false
         }
       },
-      function() {
+      function () {
         let uploadingStatus = Chunk.STATUS.UPLOADING
-        utils.each(this.chunks, function(chunk) {
+        utils.each(this.chunks, function (chunk) {
           if (chunk.status() === uploadingStatus) {
             uploading = true
             return false
@@ -341,12 +356,12 @@ utils.extend(File.prototype, {
     return uploading
   },
 
-  resume: function() {
+  resume: function () {
     this._eachAccess(
-      function(f) {
+      function (f) {
         f.resume()
       },
-      function() {
+      function () {
         this.paused = false
         this.aborted = false
         this.uploader.upload()
@@ -356,12 +371,12 @@ utils.extend(File.prototype, {
     this.aborted = false
   },
 
-  pause: function() {
+  pause: function () {
     this._eachAccess(
-      function(f) {
+      function (f) {
         f.pause()
       },
-      function() {
+      function () {
         this.paused = true
         this.abort()
       }
@@ -369,12 +384,12 @@ utils.extend(File.prototype, {
     this.paused = true
   },
 
-  cancel: function() {
+  cancel: function () {
     this.uploader.removeFile(this)
   },
 
-  retry: function(file) {
-    let fileRetry = function(file) {
+  retry: function (file) {
+    let fileRetry = function (file) {
       if (file.error) {
         file.bootstrap()
       }
@@ -382,14 +397,14 @@ utils.extend(File.prototype, {
     if (file) {
       file.bootstrap()
     } else {
-      this._eachAccess(fileRetry, function() {
+      this._eachAccess(fileRetry, function () {
         this.bootstrap()
       })
     }
     this.uploader.upload()
   },
 
-  abort: function(reset) {
+  abort: function (reset) {
     if (this.aborted) {
       return
     }
@@ -403,7 +418,7 @@ utils.extend(File.prototype, {
     let uploadingStatus = Chunk.STATUS.UPLOADING
     utils.each(
       chunks,
-      function(c) {
+      function (c) {
         if (c.status() === uploadingStatus) {
           c.abort()
           this.uploader.uploadNextChunk()
@@ -413,12 +428,12 @@ utils.extend(File.prototype, {
     )
   },
 
-  progress: function() {
+  progress: function () {
     let totalDone = 0
     let totalSize = 0
     let ret = 0
     this._eachAccess(
-      function(file, index) {
+      function (file, index) {
         totalDone += file.progress() * file.size
         totalSize += file.size
         if (index === this.files.length - 1) {
@@ -426,7 +441,7 @@ utils.extend(File.prototype, {
             totalSize > 0 ? totalDone / totalSize : this.isComplete() ? 1 : 0
         }
       },
-      function() {
+      function () {
         if (this.error) {
           ret = 1
           return
@@ -441,7 +456,7 @@ utils.extend(File.prototype, {
         }
         // Sum up progress across everything
         let bytesLoaded = 0
-        utils.each(this.chunks, function(c) {
+        utils.each(this.chunks, function (c) {
           // get chunk progress relative to entire file
           bytesLoaded += c.progress() * (c.endByte - c.startByte)
         })
@@ -457,25 +472,25 @@ utils.extend(File.prototype, {
     return ret
   },
 
-  getSize: function() {
+  getSize: function () {
     let size = 0
     this._eachAccess(
-      function(file) {
+      function (file) {
         size += file.size
       },
-      function() {
+      function () {
         size += this.size
       }
     )
     return size
   },
 
-  getFormatSize: function() {
+  getFormatSize: function () {
     let size = this.getSize()
     return utils.formatSize(size)
   },
 
-  getRoot: function() {
+  getRoot: function () {
     if (this.isRoot) {
       return this
     }
@@ -490,14 +505,14 @@ utils.extend(File.prototype, {
     return this
   },
 
-  sizeUploaded: function() {
+  sizeUploaded: function () {
     let size = 0
     this._eachAccess(
-      function(file) {
+      function (file) {
         size += file.sizeUploaded()
       },
-      function() {
-        utils.each(this.chunks, function(chunk) {
+      function () {
+        utils.each(this.chunks, function (chunk) {
           size += chunk.sizeUploaded()
         })
       }
@@ -505,12 +520,12 @@ utils.extend(File.prototype, {
     return size
   },
 
-  timeRemaining: function() {
+  timeRemaining: function () {
     let ret = 0
     let sizeDelta = 0
     let averageSpeed = 0
     this._eachAccess(
-      function(file, i) {
+      function (file, i) {
         if (!file.paused && !file.error) {
           sizeDelta += file.size - file.sizeUploaded()
           averageSpeed += file.averageSpeed
@@ -519,7 +534,7 @@ utils.extend(File.prototype, {
           ret = calRet(sizeDelta, averageSpeed)
         }
       },
-      function() {
+      function () {
         if (this.paused || this.error) {
           ret = 0
           return
@@ -529,7 +544,7 @@ utils.extend(File.prototype, {
       }
     )
     return ret
-    function calRet(delta, averageSpeed) {
+    function calRet (delta, averageSpeed) {
       if (delta && !averageSpeed) {
         return Number.POSITIVE_INFINITY
       }
@@ -540,7 +555,7 @@ utils.extend(File.prototype, {
     }
   },
 
-  removeFile: function(file) {
+  removeFile: function (file) {
     if (file.isFolder) {
       while (file.files.length) {
         let f = file.files[file.files.length - 1]
@@ -550,24 +565,24 @@ utils.extend(File.prototype, {
     this._removeFile(file)
   },
 
-  _delFilePath: function(file) {
+  _delFilePath: function (file) {
     if (file.path && this.filePaths) {
       delete this.filePaths[file.path]
     }
     utils.each(
       file.fileList,
-      function(file) {
+      function (file) {
         this._delFilePath(file)
       },
       this
     )
   },
 
-  _removeFile: function(file) {
+  _removeFile: function (file) {
     if (!file.isFolder) {
       utils.each(
         this.files,
-        function(f, i) {
+        function (f, i) {
           if (f === file) {
             this.files.splice(i, 1)
             return false
@@ -587,7 +602,7 @@ utils.extend(File.prototype, {
     file.parent === this &&
       utils.each(
         this.fileList,
-        function(f, i) {
+        function (f, i) {
           if (f === file) {
             this.fileList.splice(i, 1)
             return false
@@ -602,14 +617,14 @@ utils.extend(File.prototype, {
     file.parent = null
   },
 
-  getType: function() {
+  getType: function () {
     if (this.isFolder) {
       return 'folder'
     }
     return this.file.type && this.file.type.split('/')[1]
   },
 
-  getExtension: function() {
+  getExtension: function () {
     if (this.isFolder) {
       return ''
     }
@@ -619,19 +634,5 @@ utils.extend(File.prototype, {
   }
 })
 
-module.exports = File
+export default File
 
-function parsePaths(path) {
-  let ret = []
-  let paths = path.split('/')
-  let len = paths.length
-  let i = 1
-  paths.splice(len - 1, 1)
-  len--
-  if (paths.length) {
-    while (i <= len) {
-      ret.push(paths.slice(0, i++).join('/') + '/')
-    }
-  }
-  return ret
-}

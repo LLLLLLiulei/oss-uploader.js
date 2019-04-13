@@ -1,27 +1,9 @@
 const oproto = Object.prototype
 const aproto = Array.prototype
 const serialize = oproto.toString
-const console = window.console
-
-let isFunction = function (fn) {
-  return serialize.call(fn) === '[object Function]' || typeof fn === 'function'
-}
-
-let isArray =
-  Array.isArray ||
-  /* istanbul ignore next */ function (ary) {
-    return serialize.call(ary) === '[object Array]'
-  }
-
-let isPlainObject = function (obj) {
-  return (
-    serialize.call(obj) === '[object Object]' &&
-    Object.getPrototypeOf(obj) === oproto
-  )
-}
 
 let i = 0
-let utils = {
+const utils = {
   uid: function () {
     return ++i
   },
@@ -47,9 +29,18 @@ let utils = {
     return aproto.slice.call(ary, start, end)
   },
 
-  isPlainObject: isPlainObject,
-  isFunction: isFunction,
-  isArray: isArray,
+  isPlainObject: function (obj) {
+    return (
+      serialize.call(obj) === '[object Object]' &&
+      Object.getPrototypeOf(obj) === oproto
+    )
+  },
+  isFunction: function (fn) {
+    return typeof fn === 'function' || serialize.call(fn) === '[object Function]'
+  },
+  isArray: function (ary) {
+    return Array.isArray(ary) || serialize.call(ary) === '[object Array]'
+  },
   isObject: function (obj) {
     return Object(obj) === obj
   },
@@ -62,7 +53,6 @@ let utils = {
   isDefined: function (a) {
     return typeof a !== 'undefined'
   },
-
   each: function (ary, func, context) {
     if (utils.isDefined(ary.length)) {
       for (let i = 0, len = ary.length; i < len; i++) {
@@ -114,7 +104,7 @@ let utils = {
     }
 
     // 确保接受方为一个复杂的数据类型
-    if (typeof target !== 'object' && !isFunction(target)) {
+    if (typeof target !== 'object' && !utils.isFunction(target)) {
       target = {}
     }
 
@@ -138,13 +128,13 @@ let utils = {
           if (
             force &&
             copy &&
-            (isPlainObject(copy) || (copyIsArray = isArray(copy)))
+            (utils.isPlainObject(copy) || (copyIsArray = utils.isArray(copy)))
           ) {
             if (copyIsArray) {
               copyIsArray = false
-              clone = src && isArray(src) ? src : []
+              clone = src && utils.isArray(src) ? src : []
             } else {
-              clone = src && isPlainObject(src) ? src : {}
+              clone = src && utils.isPlainObject(src) ? src : {}
             }
             target[name] = utils.extend(force, clone, copy)
           } else if (copy !== undefined) {
@@ -176,6 +166,17 @@ let utils = {
       value: value
     })
   },
+
+  isEmptyObject: function (o) {
+    if (!o) {
+      return true
+    }
+    for (let i in o) {
+      return false
+    }
+    return true
+  },
+
   console: {
     log (...log) {
       localStorage.ossUploaderDebug - 0 === 1 && console.log(...log)
@@ -189,4 +190,4 @@ let utils = {
   }
 }
 
-module.exports = utils
+export default utils
