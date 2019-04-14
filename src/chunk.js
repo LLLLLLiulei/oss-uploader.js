@@ -123,7 +123,7 @@ utils.extend(Chunk.prototype, {
   },
 
   _aliyunUploadHandler: async function () {
-    console.log('aliyun send...', this)
+    // console.log('aliyun send...', this)
     const $ = this
     const progressHandler = function (event) {
       if (event) {
@@ -157,13 +157,13 @@ utils.extend(Chunk.prototype, {
     ;(_ => {
       try {
         let ossParams = $.file.ossParams
-        let { key, name, options,ossConfig } = ossParams
-        let {progress} = options
+        let { key, name, options, ossConfig } = ossParams
+        let {progress} = options || {}
         options = utils.isObject(options) ? options : {}
         options = utils.extend(options, {
           progress: function (percent, checkpoint) {
-            console.log(checkpoint)
-            console.log('progress', arguments)
+            // console.log(checkpoint)
+            // console.log('progress', arguments)
             $.xhr.readyState = 3
             progressHandler({
               loaded: $.file.size * percent,
@@ -174,9 +174,9 @@ utils.extend(Chunk.prototype, {
         })
         let file = $.bytes
         let ossName = key || name || file.name || 'untitiled_' + Date.now()
-        const client = new AliOSS(ossConfig )
-        client.multipartUpload(ossName,  file, options).then(result => {
-          console.log('result', result)
+        const client = new AliOSS(ossConfig)
+        client.multipartUpload(ossName, file, options).then(result => {
+          // console.log('result', result)
           if (result && result.etag) {
             $.xhr.readyState = 4
             $.xhr.status = 200
@@ -188,7 +188,7 @@ utils.extend(Chunk.prototype, {
           abort: client.cancel.bind(client)
         }
       } catch (e) {
-        console.error(e)
+        // console.error(e)
         if (e.name !== 'cancel') {
           console.error(e)
           if ($.xhr) {
@@ -213,7 +213,7 @@ utils.extend(Chunk.prototype, {
     }
 
     const doneHandler = function (event) {
-      console.log('doneHandler', event)
+      // console.log('doneHandler', event)
       let msg = $.message()
       $.processingResponse = true
       $.uploader.opts.processResponse(msg, function (err, res) {
@@ -251,7 +251,7 @@ utils.extend(Chunk.prototype, {
         doneHandler()
       },
       complete (res) {
-        console.log('complete', res)
+        // console.log('complete', res)
         $.xhr.readyState = 4
         $.xhr.status = 200
         doneHandler()
@@ -385,7 +385,7 @@ utils.extend(Chunk.prototype, {
         uploaderFnName = '_defaultUploadHandler'
         break
     }
-    console.log('uploaderFnName', uploaderFnName)
+    // console.log('uploaderFnName', uploaderFnName)
     utils.isFunction(this[uploaderFnName]) && this[uploaderFnName]()
   },
 
