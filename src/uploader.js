@@ -2,8 +2,8 @@ import utils from './utils'
 import event from './event'
 import File from './file'
 import Chunk from './chunk'
+import version from '../package.json'
 
-let version = '__VERSION__'
 
 let oss = ['qiniu', 'aliyun', 'tencent']
 

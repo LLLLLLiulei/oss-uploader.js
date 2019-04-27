@@ -180,6 +180,7 @@ utils.extend(Chunk.prototype, {
           if (result && result.etag) {
             $.xhr.readyState = 4
             $.xhr.status = 200
+            $.xhr.responseText = result
             doneHandler()
           }
         })
@@ -247,13 +248,14 @@ utils.extend(Chunk.prototype, {
         } else {
           $.xhr.status = 500
         }
-        $.xhr.responseText = err.message
+        $.xhr.responseText = err
         doneHandler()
       },
       complete (res) {
         // console.log('complete', res)
         $.xhr.readyState = 4
         $.xhr.status = 200
+        $.xhr.responseText = res
         doneHandler()
       }
     }
