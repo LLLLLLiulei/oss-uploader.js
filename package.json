@@ -1,6 +1,6 @@
 {
   "name": "oss-uploader.js",
-  "version": "0.2.6",
+  "version": "0.2.7",
   "author": "llliu <liulei_real@foxmail.com>",
   "license": "MIT",
   "repository": {
@@ -26,8 +26,9 @@
   },
   "dependencies": {
     "ali-oss": "^6.0.2",
+    "cos-js-sdk-v5": "^0.5.12",
     "qiniu-js": "^2.5.3",
-    "cos-js-sdk-v5": "^0.5.12"
+    "mime": "^2.3.1"
   },
   "devDependencies": {
     "babel-cli": "^6.26.0",

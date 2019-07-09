@@ -2,6 +2,7 @@ import utils from './utils'
 import event from './event'
 import File from './file'
 import Chunk from './chunk'
+import LocalFile from './localFile'
 import version from '../package.json'
 
 
@@ -205,6 +206,25 @@ utils.extend(Uploader.prototype, {
 
   addFile: function (file, evt) {
     this.addFiles([file], evt)
+  },
+
+  addFilesByPath(paths) {
+    if (!Array.isArray(paths)) {
+      return
+    }
+    let files = []
+    paths.forEach(p => {
+      let file = new LocalFile(p)
+      if (file.isDirectory()) {
+        files.push(...file.listFiles())
+      } else {
+        files.push(file)
+      }
+    })
+    if (!files.length) {
+      return
+    }
+    this.addFiles(files, new Event('fileAdded'))
   },
 
   cancel: function () {
