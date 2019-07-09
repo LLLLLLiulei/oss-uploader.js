@@ -500,7 +500,7 @@ utils.extend(Chunk.prototype, {
       utils.each(query, function (v, k) {
         data.append(k, v)
       })
-      data.append(this.uploader.opts.fileParameterName, blob, this.file.name)
+      blob && data.append(this.uploader.opts.fileParameterName, blob, this.file.name)
     }
 
     this.xhr.open(method, target, true)
