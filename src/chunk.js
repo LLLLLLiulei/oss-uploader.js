@@ -371,7 +371,7 @@ utils.extend(Chunk.prototype, {
     this.loaded = 0
     this.total = 0
     this.pendingRetry = false
-
+    this.xhr = {}
     let uploaderFnName
     switch (this.uploader.opts.oss) {
       case 'qiniu':
