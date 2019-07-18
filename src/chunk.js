@@ -343,6 +343,11 @@ utils.extend(Chunk.prototype, {
   },
 
   send: function () {
+    this.loaded = 0
+    this.total = 0
+    this.pendingRetry = false
+    this.xhr = {}
+
     let preprocess = this.uploader.opts.preprocess
     let read = this.uploader.opts.readFileFn
     if (utils.isFunction(preprocess)) {
@@ -368,10 +373,6 @@ utils.extend(Chunk.prototype, {
       return
     }
 
-    this.loaded = 0
-    this.total = 0
-    this.pendingRetry = false
-    this.xhr = {}
     let uploaderFnName
     switch (this.uploader.opts.oss) {
       case 'qiniu':

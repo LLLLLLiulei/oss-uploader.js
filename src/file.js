@@ -344,9 +344,9 @@ utils.extend(File.prototype, {
         }
       },
       function () {
-        let uploadingStatus = Chunk.STATUS.UPLOADING
+        let uploadingStatus = [Chunk.STATUS.UPLOADING,Chunk.STATUS.READING]
         utils.each(this.chunks, function (chunk) {
-          if (chunk.status() === uploadingStatus) {
+          if (uploadingStatus.includes(chunk.status())) {
             uploading = true
             return false
           }
