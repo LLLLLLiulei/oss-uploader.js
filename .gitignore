@@ -1,2 +1,7 @@
 node_modules/*
 .vscode/settings.json
+enum/*
+ts/*
+types/*
+interface/*
+options/*

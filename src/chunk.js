@@ -1,7 +1,7 @@
-import utils from './utils'
-import AliOSS from 'ali-oss'
-import TencentCOS from 'cos-js-sdk-v5'
-import * as qiniu from 'qiniu-js'
+const utils = require('./utils')
+const AliOSS = require('ali-oss')
+const qiniu = require('qiniu-js')
+
 
 function Chunk (uploader, file, offset) {
   utils.defineNonEnumerable(this, 'uploader', uploader)
@@ -19,6 +19,7 @@ function Chunk (uploader, file, offset) {
   this.startByte = this.offset * this.chunkSize
   this.endByte = this.computeEndByte()
   this.xhr = null
+  this.id = [this.offset, this.startByte, this.endByte].join('-')
 }
 
 const STATUS = {
@@ -158,7 +159,7 @@ utils.extend(Chunk.prototype, {
       try {
         let ossParams = $.file.ossParams
         let { key, name, options, ossConfig } = ossParams
-        let {progress} = options || {}
+        let { progress } = options || {}
         options = utils.isObject(options) ? options : {}
         options = utils.extend(options, {
           progress: function (percent, checkpoint) {
@@ -272,6 +273,8 @@ utils.extend(Chunk.prototype, {
     $.xhr.abort = subscription.unsubscribe.bind(subscription)
   },
 
+
+
   _defaultUploadHandler: function () {
     this.xhr = new XMLHttpRequest()
     this.xhr.upload.addEventListener('progress', progressHandler, false)
@@ -318,6 +321,8 @@ utils.extend(Chunk.prototype, {
           // delete this.data
           $._event(status, res)
           status === STATUS.ERROR && $.uploader.uploadNextChunk()
+          // TODO
+          status === STATUS.SUCCESS && $._resumeRecord()
         } else {
           $._event(STATUS.RETRY, res)
           $.pendingRetry = true
@@ -339,7 +344,6 @@ utils.extend(Chunk.prototype, {
   _tencentUploadHandler: function () {
     // TODO
     console.log('TODO')
-    console.log(TencentCOS)
   },
 
   send: function () {
@@ -347,7 +351,7 @@ utils.extend(Chunk.prototype, {
     this.total = 0
     this.pendingRetry = false
     this.xhr = {}
-
+    // preprocessState
     let preprocess = this.uploader.opts.preprocess
     let read = this.uploader.opts.readFileFn
     if (utils.isFunction(preprocess)) {
@@ -360,22 +364,11 @@ utils.extend(Chunk.prototype, {
           return
       }
     }
-    switch (this.readState) {
-      case 0:
-        this.readState = 1
-        read(this.file, this.file.fileType, this.startByte, this.endByte, this)
-        return
-      case 1:
-        return
-    }
-    if (this.uploader.opts.testChunks && !this.tested) {
-      this.test()
-      return
-    }
-
+    let oss = 'oss' in this.file.opts ? this.file.opts.oss : this.uploader.opts.oss
     let uploaderFnName
-    switch (this.uploader.opts.oss) {
+    switch (oss) {
       case 'qiniu':
+        // uploaderFnName = '_qiniuResumeUploadHandler'
         uploaderFnName = '_qiniuUploadHandler'
         break
       case 'aliyun':
@@ -388,6 +381,29 @@ utils.extend(Chunk.prototype, {
         uploaderFnName = '_defaultUploadHandler'
         break
     }
+
+
+    if (this.readState === 2 && !this.bytes) {
+      this.readState = 0
+    }
+
+    switch (this.readState) {
+      case 0:
+        this.readState = 1
+        if (uploaderFnName === '_qiniuResumeUploadHandler') {
+          this.readFinished(this.file.file)
+        } else {
+          read(this.file, this.file.fileType, this.startByte, this.endByte, this)
+        }
+        return
+      case 1:
+        return
+    }
+    if (this.uploader.opts.testChunks && !this.tested) {
+      this.test()
+      return
+    }
+
     // console.log('uploaderFnName', uploaderFnName)
     utils.isFunction(this[uploaderFnName]) && this[uploaderFnName]()
   },
@@ -395,10 +411,10 @@ utils.extend(Chunk.prototype, {
   abort: function () {
     let xhr = this.xhr
     xhr && xhr.abort()
-    this.xhr = null
+    this.xhr = xhr = null
     this.processingResponse = false
     this.processedState = null
-    xhr && xhr.abort()
+    this.xhr && this.xhr.abort()
   },
 
   status: function (isTest) {
@@ -451,11 +467,16 @@ utils.extend(Chunk.prototype, {
     let s = this.status()
     if (s === STATUS.SUCCESS || s === STATUS.ERROR) {
       return 1
-    } else if (s === STATUS.PENDING) {
-      return 0
     } else {
       return this.total > 0 ? this.loaded / this.total : 0
     }
+    // if (s === STATUS.SUCCESS || s === STATUS.ERROR) {
+    //   return 1
+    // } else if (s === STATUS.PENDING) {
+    //   return 0
+    // } else {
+    //   return this.total > 0 ? this.loaded / this.total : 0
+    // }
   },
 
   sizeUploaded: function () {
@@ -517,7 +538,11 @@ utils.extend(Chunk.prototype, {
     )
 
     return data
+  },
+
+  // 记录分块上传记录
+  _resumeRecord () {
   }
 })
 
-export default Chunk
+module.exports = Chunk

@@ -1,4 +1,5 @@
-import util from './utils'
+const util = require('./utils')
+// import util from './utils'
 
 const event = {
   _eventData: null,
@@ -51,4 +52,4 @@ const event = {
   }
 }
 
-export default event
+module.exports = event
